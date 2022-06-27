@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
 import { SideBar } from './components/SideBar';
 import { Content } from './components/Content';
@@ -10,13 +10,13 @@ import './styles/global.scss';
 import './styles/sidebar.scss';
 import './styles/content.scss';
 
-interface GenreResponseProps {
+type GenreResponseProps = {
   id: number;
   name: 'action' | 'comedy' | 'documentary' | 'drama' | 'horror' | 'family';
   title: string;
 }
 
-interface MovieProps {
+type MovieProps = {
   imdbID: string;
   Title: string;
   Poster: string;
@@ -27,6 +27,14 @@ interface MovieProps {
   Runtime: string;
 }
 
+const getMovies = (selectedGenreId: number) => api
+  .get<MovieProps[]>(`movies/?Genre_id=${selectedGenreId}`)
+  .then(response => response.data)
+
+const getGenere = (selectedGenreId: number) => api
+  .get<GenreResponseProps>(`genres/${selectedGenreId}`)
+  .then(response => response.data)
+
 export function App() {
   const [selectedGenreId, setSelectedGenreId] = useState(1);
 
@@ -35,6 +43,20 @@ export function App() {
   const [movies, setMovies] = useState<MovieProps[]>([]);
   const [selectedGenre, setSelectedGenre] = useState<GenreResponseProps>({} as GenreResponseProps);
 
+  const getMoviesByGenere = useCallback(async () => {
+    try {
+      const [moviesList, genre] = await Promise.all([
+        getMovies(selectedGenreId),
+        getGenere(selectedGenreId)
+      ])
+
+      setMovies(moviesList);
+      setSelectedGenre(genre);
+    } catch (e) {
+      return console.error(e)
+    }
+  }, [selectedGenreId])
+
   useEffect(() => {
     api.get<GenreResponseProps[]>('genres').then(response => {
       setGenres(response.data);
@@ -42,14 +64,8 @@ export function App() {
   }, []);
 
   useEffect(() => {
-    api.get<MovieProps[]>(`movies/?Genre_id=${selectedGenreId}`).then(response => {
-      setMovies(response.data);
-    });
-
-    api.get<GenreResponseProps>(`genres/${selectedGenreId}`).then(response => {
-      setSelectedGenre(response.data);
-    })
-  }, [selectedGenreId]);
+    getMoviesByGenere()
+  }, [getMoviesByGenere]);
 
   function handleClickButton(id: number) {
     setSelectedGenreId(id);
